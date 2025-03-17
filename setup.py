@@ -1,9 +1,6 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-import os
+from setuptools import setup, Extension
 import numpy
-
-from setuptools import find_packages, setup, Extension
+import os
 
 
 def read(rel_path: str) -> str:
@@ -20,10 +17,7 @@ def get_version(rel_path: str) -> str:
     raise RuntimeError("Unable to find version string.")
 
 
-# Package meta-data.
-NAME = "pyqlib"
-DESCRIPTION = "A Quantitative-research Platform"
-REQUIRES_PYTHON = ">=3.5.0"
+NUMPY_INCLUDE = numpy.get_include()
 
 VERSION = get_version("qlib/__init__.py")
 
@@ -117,8 +111,7 @@ setup(
     name=NAME,
     version=VERSION,
     license="MIT Licence",
-    # url="https://github.com/microsoft/qlib",
-    url="https://github.com/SJTU-Quant/qlib",
+    url="https://github.com/microsoft/qlib",
     description=DESCRIPTION,
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -196,5 +189,8 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
     ],
 )
