@@ -25,6 +25,7 @@ except ModuleNotFoundError:
     print("ModuleNotFoundError. LinearModel is skipped(optional: maybe installing scipy and sklearn can fix it).")
 # import pytorch models
 try:
+    # 静默导入PyTorch模型，不输出调试信息
     from .pytorch_alstm import ALSTM
     from .pytorch_gats import GATs
     from .pytorch_gru import GRU
@@ -38,6 +39,10 @@ try:
     pytorch_classes = (ALSTM, GATs, GRU, LSTM, DNNModelPytorch, TabnetModel, SFM_Model, TCN, ADD)
 except ModuleNotFoundError:
     pytorch_classes = ()
-    print("ModuleNotFoundError.  PyTorch models are skipped (optional: maybe installing pytorch can fix it).")
+    print("ModuleNotFoundError. PyTorch models are skipped (optional: maybe installing pytorch can fix it).")
+except Exception:
+    pytorch_classes = ()
+    # 出现异常时也不输出详细错误信息
+    print("Error importing PyTorch models. Some PyTorch models are skipped.")
 
 all_model_classes = (CatBoostModel, DEnsembleModel, LGBModel, XGBModel, LinearModel) + pytorch_classes

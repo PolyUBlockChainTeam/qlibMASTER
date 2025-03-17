@@ -1,6 +1,9 @@
-from setuptools import setup, Extension
-import numpy
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 import os
+import numpy
+
+from setuptools import find_packages, setup, Extension
 
 
 def read(rel_path: str) -> str:
@@ -17,7 +20,10 @@ def get_version(rel_path: str) -> str:
     raise RuntimeError("Unable to find version string.")
 
 
-NUMPY_INCLUDE = numpy.get_include()
+# Package meta-data.
+NAME = "pyqlib"
+DESCRIPTION = "A Quantitative-research Platform"
+REQUIRES_PYTHON = ">=3.5.0"
 
 VERSION = get_version("qlib/__init__.py")
 

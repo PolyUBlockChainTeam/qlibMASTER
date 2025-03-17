@@ -24,15 +24,100 @@ import argparse
 import os
 import pprint as pp
 import numpy as np
+import re
+import logging
+import datetime
+
+# 配置日志
+def setup_logger(universe, only_backtest):
+    """设置日志系统"""
+    if not os.path.exists('./logs'):
+        os.makedirs('./logs')
+    if not os.path.exists('./backtest'):
+        os.makedirs('./backtest')
+    
+    if only_backtest:
+        log_file = f"./backtest/{universe}.log"
+    else:
+        log_file = f"./logs/{universe}.log"
+    
+    # 创建日志记录器
+    logger = logging.getLogger('master_training')
+    logger.setLevel(logging.INFO)
+    
+    # 清除现有处理程序
+    if logger.handlers:
+        for handler in logger.handlers:
+            logger.removeHandler(handler)
+    
+    # 创建文件处理程序
+    file_handler = logging.FileHandler(log_file, mode='w')
+    file_handler.setLevel(logging.INFO)
+    
+    # 创建控制台处理程序
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    
+    # 创建格式器
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    # 添加处理程序到日志记录器
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
 
 def parse_args():
     """parse arguments. You can add other arguments if needed."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--only_backtest", action="store_true", help="whether only backtest or not")
+    parser.add_argument("--universe", type=str, default="csi300", choices=["csi300", "csi500"], 
+                        help="set the market, you can choose `csi300` or `csi500`")
     return parser.parse_args()
+
+def setup_directories():
+    """创建必要的目录"""
+    if not os.path.exists('./logs'):
+        os.makedirs('./logs')
+    if not os.path.exists('./backtest'):
+        os.makedirs('./backtest')
+    if not os.path.exists('./model'):
+        os.makedirs('./model')
+
+def update_config_file(universe):
+    """更新配置文件中的市场参数"""
+    config_file = "./workflow_config_master_Alpha158.yaml"
+    with open(config_file, 'r') as f:
+        content = f.read()
+    
+    # 更新universe
+    content = re.sub(r'csi\d+', universe, content)
+    
+    # 更新指数代码
+    if universe == 'csi300':
+        content = re.sub(r'SH\d+', 'SH000300', content)
+    elif universe == 'csi500':
+        content = re.sub(r'SH\d+', 'SH000905', content)
+    
+    with open(config_file, 'w') as f:
+        f.write(content)
 
 if __name__ == "__main__":
     args = parse_args()
+    
+    # 创建必要的目录
+    setup_directories()
+    
+    # 更新配置文件
+    update_config_file(args.universe)
+    
+    # 设置日志系统
+    logger = setup_logger(args.universe, args.only_backtest)
+    logger.info(f"开始运行 MASTER 模型 - universe: {args.universe}, only_backtest: {args.only_backtest}")
+    logger.info(f"开始时间: {datetime.datetime.now()}")
+    
     # use default data
     provider_uri = "~/.qlib/qlib_data/cn_data"  # target_dir
     GetData().qlib_data(target_dir=provider_uri, region=REG_CN, exists_skip=True)
@@ -46,16 +131,13 @@ if __name__ == "__main__":
     if not h_path.exists():
         h = init_instance_by_config(h_conf)
         h.to_pickle(h_path, dump_all=True)
-        print('Save preprocessed data to', h_path)
+        logger.info(f'Save preprocessed data to {h_path}')
     config["task"]["dataset"]["kwargs"]["handler"] = f"file://{h_path}"
     dataset = init_instance_by_config(config['task']["dataset"])
 
     ###################################
     # train model
     ###################################
-
-    if not os.path.exists('./model'):
-        os.mkdir("./model")
 
     all_metrics = {
         k: []
@@ -70,15 +152,29 @@ if __name__ == "__main__":
     }
 
     for seed in range(0, 3):
-        print("------------------------")
-        print(f"seed: {seed}")
+        logger.info("------------------------")
+        logger.info(f"seed: {seed}")
 
         config['task']["model"]['kwargs']["seed"] = seed
         model = init_instance_by_config(config['task']["model"])
 
         # start exp
         if not args.only_backtest:
+            # 重定向模型训练中的print输出到日志
+            orig_print = print
+            def custom_print(*args, **kwargs):
+                msg = ' '.join(map(str, args))
+                logger.info(msg)
+                # orig_print(*args, **kwargs)  # 仍然保留控制台输出
+            
+            # 替换print函数
+            import builtins
+            builtins.print = custom_print
+            
             model.fit(dataset=dataset)
+            
+            # 恢复原始print函数
+            builtins.print = orig_print
         else:
             model.load_model(f"./model/{config['market']}master_{seed}.pkl")
 
@@ -98,10 +194,13 @@ if __name__ == "__main__":
             par.generate()
 
             metrics = recorder.list_metrics()
-            print(metrics)
+            logger.info(f"Metrics: {metrics}")
             for k in all_metrics.keys():
                 all_metrics[k].append(metrics[k])
-            pp.pprint(all_metrics)
+            logger.info(f"All metrics: {all_metrics}")
     
     for k in all_metrics.keys():
-        print(f"{k}: {np.mean(all_metrics[k])} +- {np.std(all_metrics[k])}")
+        logger.info(f"{k}: {np.mean(all_metrics[k])} +- {np.std(all_metrics[k])}")
+    
+    logger.info(f"结束时间: {datetime.datetime.now()}")
+    logger.info("模型训练和评估完成")

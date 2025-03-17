@@ -1,1 +1,11 @@
+numpy
 chardet
+torch
+torchvision
+torchaudio
+catboost
+xgboost
+higher
+# lightgbm
+
+
