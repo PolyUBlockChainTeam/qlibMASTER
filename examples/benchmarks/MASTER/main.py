@@ -41,33 +41,36 @@ def setup_logger(universe, only_backtest):
     else:
         log_file = f"./logs/{universe}.log"
     
-    # 创建日志记录器
-    logger = logging.getLogger('master_training')
-    logger.setLevel(logging.INFO)
-    
-    # 清除现有处理程序
-    if logger.handlers:
-        for handler in logger.handlers:
-            logger.removeHandler(handler)
+    # 先移除 root logger 里所有的 handler
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
     
     # 创建文件处理程序
     file_handler = logging.FileHandler(log_file, mode='w')
     file_handler.setLevel(logging.INFO)
     
-    # 创建控制台处理程序
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    # 创建两个控制台处理程序
+    stdout_handler = logging.StreamHandler(sys.stdout)  # 处理 INFO 及以上的日志
+    stderr_handler = logging.StreamHandler(sys.stderr)  # 处理 WARNING 及以上的日志
     
-    # 创建格式器
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    # 设置不同的日志级别
+    stdout_handler.setLevel(logging.INFO)   # 只处理 INFO及以上
+    stderr_handler.setLevel(logging.WARNING)  # 只处理 WARNING 及以上
+    
+    # 设置日志格式
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
+    stdout_handler.setFormatter(formatter)
+    stderr_handler.setFormatter(formatter)
     
-    # 添加处理程序到日志记录器
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    # 添加处理程序到root logger
+    logging.root.addHandler(file_handler)
+    logging.root.addHandler(stdout_handler)
+    logging.root.addHandler(stderr_handler)
+    logging.root.setLevel(logging.INFO)  # 让 root logger 处理 INFO 及以上的日志
     
-    return logger
+    # 返回root logger
+    return logging.getLogger()
 
 def parse_args():
     """parse arguments. You can add other arguments if needed."""
