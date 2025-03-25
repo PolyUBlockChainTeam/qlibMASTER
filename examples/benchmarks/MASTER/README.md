@@ -158,6 +158,5 @@ scancel <JOB_ID>
 所有结果将保存在`logs`或`backtest`目录中，具体取决于运行模式。
 
 ## 🤝 贡献
-
 alex
 欢迎提交问题报告和改进建议。请随时提交Pull Request或创建Issue。
