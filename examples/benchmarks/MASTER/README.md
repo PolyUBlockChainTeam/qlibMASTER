@@ -279,5 +279,8 @@ git push origin main
 定期代码审查：通过 Pull Request 进行代码合并时，便于团队发现潜在问题。<br>
 
 ## 🤝 贡献
-
+alex
+Zonda_wu
+刘青沅刘青沅刘青沅
+louis
 欢迎提交问题报告和改进建议。请随时提交Pull Request或创建Issue。
