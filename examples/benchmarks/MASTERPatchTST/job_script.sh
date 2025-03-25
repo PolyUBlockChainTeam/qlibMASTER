@@ -7,4 +7,5 @@
 # #SBATCH --gres=gpu:7g.80gb:1  # 申请GPU 
 # #SBATCH --gres=gpu:2g.20gb:2  # 申请GPU 
 # #SBATCH --gres=gpu:4g.40gb:1  # 申请GPU 
+
 python main.py --universe csi300
