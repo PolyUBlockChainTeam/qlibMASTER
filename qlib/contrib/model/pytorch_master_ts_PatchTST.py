@@ -21,16 +21,98 @@ from torch.nn.modules.dropout import Dropout
 from torch.nn.modules.normalization import LayerNorm
 import torch.optim as optim
 
+# 导入PatchTST相关模块
+from ..layers.PatchTST_backbone import PatchTST_backbone
+from ..layers.PatchTST_layers import series_decomp
+
 import qlib
 # from qlib.utils import init_instance_by_config
 # from qlib.data.dataset import Dataset, DataHandlerLP, DatasetH
 from ...data.dataset import DatasetH
 from ...data.dataset.handler import DataHandlerLP
-from ...model.base import Model
-# from qlib.contrib.data.dataset import TSDataSampler
-# from qlib.workflow.record_temp import SigAnaRecord, PortAnaRecord
-# from qlib.workflow import R, Experiment
-# from qlib.workflow.task.utils import TimeAdjuster
+from ...model.base import Model as QLibBaseModel
+
+
+class PatchTSTModel(nn.Module):
+    """
+    PatchTST模型
+    用于处理时间序列数据的Transformer模型
+    """
+    def __init__(self, configs, max_seq_len:Optional[int]=1024, d_k:Optional[int]=None, d_v:Optional[int]=None, norm:str='BatchNorm', attn_dropout:float=0., 
+                 act:str="gelu", key_padding_mask:bool='auto',padding_var:Optional[int]=None, attn_mask:Optional[torch.Tensor]=None, res_attention:bool=True, 
+                 pre_norm:bool=False, store_attn:bool=False, pe:str='zeros', learn_pe:bool=True, pretrain_head:bool=False, head_type = 'flatten', verbose:bool=False, **kwargs):
+        
+        super().__init__()
+        
+        # 加载参数
+        c_in = configs.enc_in
+        context_window = configs.seq_len
+        target_window = configs.pred_len
+        
+        n_layers = configs.e_layers
+        n_heads = configs.n_heads
+        d_model = configs.d_model
+        d_ff = configs.d_ff
+        dropout = configs.dropout
+        fc_dropout = configs.fc_dropout
+        head_dropout = configs.head_dropout
+        
+        individual = configs.individual
+    
+        patch_len = configs.patch_len
+        stride = configs.stride
+        padding_patch = configs.padding_patch
+        
+        revin = configs.revin
+        affine = configs.affine
+        subtract_last = configs.subtract_last
+        
+        decomposition = configs.decomposition
+        kernel_size = configs.kernel_size
+        
+        # 模型
+        self.decomposition = decomposition
+        if self.decomposition:
+            self.decomp_module = series_decomp(kernel_size)
+            self.model_trend = PatchTST_backbone(c_in=c_in, context_window = context_window, target_window=target_window, patch_len=patch_len, stride=stride, 
+                                  max_seq_len=max_seq_len, n_layers=n_layers, d_model=d_model,
+                                  n_heads=n_heads, d_k=d_k, d_v=d_v, d_ff=d_ff, norm=norm, attn_dropout=attn_dropout,
+                                  dropout=dropout, act=act, key_padding_mask=key_padding_mask, padding_var=padding_var, 
+                                  attn_mask=attn_mask, res_attention=res_attention, pre_norm=pre_norm, store_attn=store_attn,
+                                  pe=pe, learn_pe=learn_pe, fc_dropout=fc_dropout, head_dropout=head_dropout, padding_patch = padding_patch,
+                                  pretrain_head=pretrain_head, head_type=head_type, individual=individual, revin=revin, affine=affine,
+                                  subtract_last=subtract_last, verbose=verbose, **kwargs)
+            self.model_res = PatchTST_backbone(c_in=c_in, context_window = context_window, target_window=target_window, patch_len=patch_len, stride=stride, 
+                                  max_seq_len=max_seq_len, n_layers=n_layers, d_model=d_model,
+                                  n_heads=n_heads, d_k=d_k, d_v=d_v, d_ff=d_ff, norm=norm, attn_dropout=attn_dropout,
+                                  dropout=dropout, act=act, key_padding_mask=key_padding_mask, padding_var=padding_var, 
+                                  attn_mask=attn_mask, res_attention=res_attention, pre_norm=pre_norm, store_attn=store_attn,
+                                  pe=pe, learn_pe=learn_pe, fc_dropout=fc_dropout, head_dropout=head_dropout, padding_patch = padding_patch,
+                                  pretrain_head=pretrain_head, head_type=head_type, individual=individual, revin=revin, affine=affine,
+                                  subtract_last=subtract_last, verbose=verbose, **kwargs)
+        else:
+            self.model = PatchTST_backbone(c_in=c_in, context_window = context_window, target_window=target_window, patch_len=patch_len, stride=stride, 
+                                  max_seq_len=max_seq_len, n_layers=n_layers, d_model=d_model,
+                                  n_heads=n_heads, d_k=d_k, d_v=d_v, d_ff=d_ff, norm=norm, attn_dropout=attn_dropout,
+                                  dropout=dropout, act=act, key_padding_mask=key_padding_mask, padding_var=padding_var, 
+                                  attn_mask=attn_mask, res_attention=res_attention, pre_norm=pre_norm, store_attn=store_attn,
+                                  pe=pe, learn_pe=learn_pe, fc_dropout=fc_dropout, head_dropout=head_dropout, padding_patch = padding_patch,
+                                  pretrain_head=pretrain_head, head_type=head_type, individual=individual, revin=revin, affine=affine,
+                                  subtract_last=subtract_last, verbose=verbose, **kwargs)
+    
+    def forward(self, x):           # x: [Batch, Input length, Channel]
+        if self.decomposition:
+            res_init, trend_init = self.decomp_module(x)
+            res_init, trend_init = res_init.permute(0,2,1), trend_init.permute(0,2,1)  # x: [Batch, Channel, Input length]
+            res = self.model_res(res_init)
+            trend = self.model_trend(trend_init)
+            x = res + trend
+            x = x.permute(0,2,1)    # x: [Batch, Input length, Channel]
+        else:
+            x = x.permute(0,2,1)    # x: [Batch, Channel, Input length]
+            x = self.model(x)
+            x = x.permute(0,2,1)    # x: [Batch, Input length, Channel]
+        return x
 
 class PositionalEncoding(nn.Module):
     """
@@ -102,29 +184,65 @@ class TAttention(nn.Module):
     """
     股票内部注意力模块 (Intra-Stock Attention)
     用于捕捉单个股票内部不同时间步之间的关系，实现股票内部信息的聚合
-    基于Transformer架构，使用多头注意力机制处理时间序列上的依赖关系
+    使用PatchTST架构处理时间序列数据
     
     参数:
         d_model: 特征维度
         nhead: 多头注意力的头数
         dropout: dropout比率
+        patch_len: patch长度
+        stride: patch步长
     """
-    def __init__(self, d_model, nhead, dropout):
+    def __init__(self, d_model, nhead, dropout, patch_len=8, stride=4):
         super().__init__()
         self.d_model = d_model
         self.nhead = nhead
-        # 线性变换层用于生成query, key, value
-        self.qtrans = nn.Linear(d_model, d_model, bias=False)
-        self.ktrans = nn.Linear(d_model, d_model, bias=False)
-        self.vtrans = nn.Linear(d_model, d_model, bias=False)
-
-        # 创建dropout层
-        self.attn_dropout = []
-        if dropout > 0:
-            for i in range(nhead):
-                self.attn_dropout.append(Dropout(p=dropout))
-            self.attn_dropout = nn.ModuleList(self.attn_dropout)
-
+        
+        # 创建配置对象
+        class Config:
+            def __init__(self):
+                self.enc_in = d_model
+                self.seq_len = 8  # 修改为与输入序列长度匹配
+                self.pred_len = 1
+                self.e_layers = 1
+                self.n_heads = nhead
+                self.d_model = d_model
+                self.d_ff = 0
+                self.dropout = dropout
+                self.fc_dropout = dropout
+                self.head_dropout = 0
+                self.individual = False
+                self.patch_len = patch_len
+                self.stride = stride
+                self.padding_patch = 'end'
+                self.revin = 1
+                self.affine = 0
+                self.subtract_last = False
+                self.decomposition = False
+                self.kernel_size = 25
+        
+        configs = Config()
+        
+        # 创建PatchTST模型
+        self.patchtst = PatchTSTModel(
+            configs=configs,
+            max_seq_len=8,  # 修改为与输入序列长度匹配
+            d_k=d_model,
+            d_v=d_model,
+            norm='BatchNorm',
+            attn_dropout=dropout,
+            act="gelu",
+            key_padding_mask='auto',
+            res_attention=True,
+            pre_norm=False,
+            store_attn=False,
+            pe='zeros',
+            learn_pe=True,
+            pretrain_head=False,
+            head_type='flatten',
+            verbose=False
+        )
+        
         # 输入层标准化
         self.norm1 = LayerNorm(d_model, eps=1e-5)
         # 前馈网络层标准化
@@ -149,34 +267,14 @@ class TAttention(nn.Module):
         """
         # 第一层标准化
         x = self.norm1(x)
-        # 生成query, key, value
-        q = self.qtrans(x)
-        k = self.ktrans(x)
-        v = self.vtrans(x)
-
-        # 多头注意力机制
-        dim = int(self.d_model / self.nhead)
-        att_output = []
-        for i in range(self.nhead):
-            # 获取每个头的query, key, value
-            if i==self.nhead-1:
-                qh = q[:, :, i * dim:]
-                kh = k[:, :, i * dim:]
-                vh = v[:, :, i * dim:]
-            else:
-                qh = q[:, :, i * dim:(i + 1) * dim]
-                kh = k[:, :, i * dim:(i + 1) * dim]
-                vh = v[:, :, i * dim:(i + 1) * dim]
-            # 计算注意力分数并进行softmax
-            atten_ave_matrixh = torch.softmax(torch.matmul(qh, kh.transpose(1, 2)), dim=-1)
-            # 应用dropout
-            if self.attn_dropout:
-                atten_ave_matrixh = self.attn_dropout[i](atten_ave_matrixh)
-            # 计算注意力输出
-            att_output.append(torch.matmul(atten_ave_matrixh, vh))
-        # 合并多头注意力输出
-        att_output = torch.concat(att_output, dim=-1)
-
+        
+        # 调整输入维度以适应PatchTST
+        # PatchTST期望输入格式为 [batch_size, seq_len, n_vars]
+        att_output = x  # 已经是正确的格式 [batch_size, seq_len, d_model]
+        
+        # 应用PatchTST
+        att_output = self.patchtst(att_output)  # [batch_size, seq_len, d_model]
+        
         # 残差连接和前馈网络
         xt = x + att_output  # 残差连接
         xt = self.norm2(xt)  # 第二层标准化
@@ -188,7 +286,7 @@ class SAttention(nn.Module):
     """
     股票间注意力模块 (Inter-Stock Attention)
     用于捕捉不同股票之间的相互关系，实现股票间的信息聚合
-    基于Transformer架构，使用多头注意力机制处理股票间的依赖关系
+    使用单一注意力机制处理股票间的依赖关系
     
     参数:
         d_model: 特征维度
@@ -457,6 +555,11 @@ class DailyBatchSamplerRandom(Sampler):
         # 计算每个批次的起始索引
         self.daily_index = np.roll(np.cumsum(self.daily_count), 1)  # calculate begin index of each batch
         self.daily_index[0] = 0
+        
+        # 添加调试信息
+        print(f"总批次数: {len(self.daily_count)}")
+        print(f"每个批次的样本数: {self.daily_count}")
+        print(f"每个批次的起始索引: {self.daily_index}")
 
     def __iter__(self):
         """
@@ -467,17 +570,21 @@ class DailyBatchSamplerRandom(Sampler):
             index = np.arange(len(self.daily_count))
             np.random.shuffle(index)
             for i in index:
-                yield np.arange(self.daily_index[i], self.daily_index[i] + self.daily_count[i])
+                batch_indices = np.arange(self.daily_index[i], self.daily_index[i] + self.daily_count[i])
+                print(f"生成第{i}个批次，包含{len(batch_indices)}个样本")
+                yield batch_indices
         else:
             # 按原始日期顺序
             for idx, count in zip(self.daily_index, self.daily_count):
-                yield np.arange(idx, idx + count)
+                batch_indices = np.arange(idx, idx + count)
+                print(f"生成第{idx}个批次，包含{len(batch_indices)}个样本")
+                yield batch_indices
 
     def __len__(self):
         return len(self.data_source)
 
 
-class MASTERModel(Model):
+class MASTERModel(QLibBaseModel):
     """
     MASTER模型的训练和预测包装类
     
@@ -504,6 +611,8 @@ class MASTERModel(Model):
     """
     def __init__(self, d_feat: int = 158, d_model: int = 256, t_nhead: int = 4, s_nhead: int = 2, gate_input_start_index=158, gate_input_end_index=221,
             T_dropout_rate=0.5, S_dropout_rate=0.5, beta=None, n_epochs = 40, lr = 8e-6, GPU=0, seed=0, train_stop_loss_thred=None, save_path = 'model/', save_prefix= '', benchmark = 'SH000300', market = 'csi300', only_backtest = False):
+        
+        super().__init__()
         
         # 模型结构参数
         self.d_model = d_model
@@ -543,33 +652,35 @@ class MASTERModel(Model):
             torch.manual_seed(self.seed)
             
         # 初始化MASTER模型
-        self.model = MASTER(d_feat=self.d_feat, d_model=self.d_model, t_nhead=self.t_nhead, s_nhead=self.s_nhead,
+        self._model = MASTER(d_feat=self.d_feat, d_model=self.d_model, t_nhead=self.t_nhead, s_nhead=self.s_nhead,
                                    T_dropout_rate=self.T_dropout_rate, S_dropout_rate=self.S_dropout_rate,
                                    gate_input_start_index=self.gate_input_start_index,
                                    gate_input_end_index=self.gate_input_end_index, beta=self.beta)
-        
         # 打印模型参数量
-        self.model.count_parameters()
-
+        self._model.count_parameters()
         # 初始化优化器
-        self.train_optimizer = optim.Adam(self.model.parameters(), self.lr)
+        self.train_optimizer = optim.Adam(self._model.parameters(), self.lr)
         # 将模型移至指定设备
-        self.model.to(self.device)
+        self._model.to(self.device)
 
         # 模型保存相关参数
         self.save_path = save_path
         self.save_prefix = save_prefix
         self.only_backtest = only_backtest
 
+    @property
+    def model(self):
+        return self._model
+
     def init_model(self):
         """
         初始化模型和优化器
         """
-        if self.model is None:
+        if self._model is None:
             raise ValueError("model has not been initialized")
 
-        self.train_optimizer = optim.Adam(self.model.parameters(), self.lr)
-        self.model.to(self.device)
+        self.train_optimizer = optim.Adam(self._model.parameters(), self.lr)
+        self._model.to(self.device)
 
     def load_model(self, param_path):
         """
@@ -579,7 +690,7 @@ class MASTERModel(Model):
             param_path: 模型参数文件路径
         """
         try:
-            self.model.load_state_dict(torch.load(param_path, map_location=self.device))
+            self._model.load_state_dict(torch.load(param_path, map_location=self.device))
             self.fitted = True
         except:
             raise ValueError("Model not found.") 
@@ -599,73 +710,6 @@ class MASTERModel(Model):
         loss = (pred[mask]-label[mask])**2
         return torch.mean(loss)
 
-    def train_epoch(self, data_loader):
-        """
-        训练一个epoch
-        
-        参数:
-            data_loader: 数据加载器
-            
-        返回:
-            平均训练损失
-        """
-        self.model.train()
-        losses = []
-
-        for data in data_loader:
-            data = torch.squeeze(data, dim=0)
-            '''
-            data.shape: (N, T, F)
-            N - 股票数量
-            T - 回溯窗口长度，8
-            F - 158个因子 + 63个市场信息 + 1个标签          
-            '''
-            # 提取特征和标签
-            feature = data[:, :, 0:-1].to(self.device)  # 特征 [N, T, F-1]
-            label = data[:, -1, -1].to(self.device)     # 标签 [N]
-            assert not torch.any(torch.isnan(label))
-
-            # 前向传播
-            pred = self.model(feature.float())
-            # 计算损失
-            loss = self.loss_fn(pred, label)
-            losses.append(loss.item())
-
-            # 反向传播和优化
-            self.train_optimizer.zero_grad()
-            loss.backward()
-            # 梯度裁剪，防止梯度爆炸
-            torch.nn.utils.clip_grad_value_(self.model.parameters(), 3.0)
-            self.train_optimizer.step()
-
-        return float(np.mean(losses))
-
-    def test_epoch(self, data_loader):
-        """
-        测试一个epoch
-        
-        参数:
-            data_loader: 数据加载器
-            
-        返回:
-            平均测试损失
-        """
-        self.model.eval()
-        losses = []
-
-        for data in data_loader:
-            data = torch.squeeze(data, dim=0)
-            # 提取特征和标签
-            feature = data[:, :, 0:-1].to(self.device)
-            label = data[:, -1, -1].to(self.device)
-            # 前向传播
-            pred = self.model(feature.float())
-            # 计算损失
-            loss = self.loss_fn(pred, label)
-            losses.append(loss.item())
-
-        return float(np.mean(losses))
-
     def _init_data_loader(self, data, shuffle=True, drop_last=True):
         """
         初始化数据加载器
@@ -679,8 +723,85 @@ class MASTERModel(Model):
             数据加载器
         """
         sampler = DailyBatchSamplerRandom(data, shuffle)
-        data_loader = DataLoader(data, sampler=sampler, drop_last=drop_last)
+        # 添加batch_size参数
+        data_loader = DataLoader(data, batch_size=1, sampler=sampler, drop_last=drop_last)
         return data_loader
+
+    def train_epoch(self, data_loader):
+        """
+        训练一个epoch
+        
+        参数:
+            data_loader: 数据加载器
+            
+        返回:
+            平均训练损失
+        """
+        self._model.train()
+        losses = []
+
+        # 添加调试信息
+        print("开始训练一个epoch...")
+        for i, data in enumerate(data_loader):
+            if i == 0:
+                print(f"第一个batch的shape: {data.shape}")
+            
+            data = torch.squeeze(data, dim=0)
+            '''
+            data.shape: (N, T, F)
+            N - 股票数量
+            T - 回溯窗口长度，8
+            F - 158个因子 + 63个市场信息 + 1个标签          
+            '''
+            # 提取特征和标签
+            feature = data[:, :, 0:-1].to(self.device)  # 特征 [N, T, F-1]
+            label = data[:, -1, -1].to(self.device)     # 标签 [N]
+            
+            if torch.any(torch.isnan(label)):
+                print(f"警告：第{i}个batch包含NaN标签")
+                continue
+
+            pred = self._model(feature.float())
+            loss = self.loss_fn(pred, label)
+            losses.append(loss.item())
+
+            # 反向传播和优化
+            self.train_optimizer.zero_grad()
+            loss.backward()
+            # 梯度裁剪，防止梯度爆炸
+            torch.nn.utils.clip_grad_value_(self._model.parameters(), 3.0)
+            self.train_optimizer.step()
+
+            if i % 10 == 0:  # 每10个batch打印一次进度
+                print(f"已处理 {i} 个batch，当前loss: {loss.item():.6f}")
+
+        return float(np.mean(losses))
+
+    def test_epoch(self, data_loader):
+        """
+        测试一个epoch
+        
+        参数:
+            data_loader: 数据加载器
+            
+        返回:
+            平均测试损失
+        """
+        self._model.eval()
+        losses = []
+
+        for data in data_loader:
+            data = torch.squeeze(data, dim=0)
+            # 提取特征和标签
+            feature = data[:, :, 0:-1].to(self.device)
+            label = data[:, -1, -1].to(self.device)
+            # 前向传播
+            pred = self._model(feature.float())
+            # 计算损失
+            loss = self.loss_fn(pred, label)
+            losses.append(loss.item())
+
+        return float(np.mean(losses))
 
     def load_param(self, param_path):
         """
@@ -689,19 +810,25 @@ class MASTERModel(Model):
         参数:
             param_path: 参数文件路径
         """
-        self.model.load_state_dict(torch.load(param_path, map_location=self.device))
+        self._model.load_state_dict(torch.load(param_path, map_location=self.device))
         self.fitted = True
 
-    def fit(self, dataset: DatasetH):
+    def fit(self, dataset: DatasetH, progress_callback=None):
         """
         训练模型
         
         参数:
             dataset: 数据集
+            progress_callback: 进度回调函数，用于显示训练进度
         """
         # 准备训练集和验证集
+        print("准备训练集和验证集...")
         dl_train = dataset.prepare("train", col_set=["feature", "label"], data_key=DataHandlerLP.DK_L)
         dl_valid = dataset.prepare("valid", col_set=["feature", "label"], data_key=DataHandlerLP.DK_L)
+        
+        print(f"训练集大小: {len(dl_train)}")
+        print(f"验证集大小: {len(dl_valid)}")
+        
         # 创建数据加载器
         train_loader = self._init_data_loader(dl_train, shuffle=True, drop_last=True)
         valid_loader = self._init_data_loader(dl_valid, shuffle=False, drop_last=True)
@@ -712,22 +839,32 @@ class MASTERModel(Model):
 
         # 训练循环
         for step in range(self.n_epochs):
+            print(f"\n开始训练第 {step+1}/{self.n_epochs} 个epoch...")
             # 训练一个epoch
             train_loss = self.train_epoch(train_loader)
             # 验证一个epoch
             val_loss = self.test_epoch(valid_loader)
 
-            print("Epoch %d, train_loss %.6f, valid_loss %.6f " % (step, train_loss, val_loss))
+            # 更新进度显示
+            if progress_callback:
+                progress_callback(step, train_loss, val_loss)
+            else:
+                print(f"Epoch {step}, train_loss {train_loss:.6f}, valid_loss {val_loss:.6f}")
+
             # 保存最佳模型
             if best_val_loss > val_loss:
-                best_param = copy.deepcopy(self.model.state_dict())
+                best_param = copy.deepcopy(self._model.state_dict())
                 best_val_loss = val_loss
+                print(f"保存最佳模型，验证损失: {val_loss:.6f}")
 
             # 达到训练停止阈值则提前结束
             if train_loss <= self.train_stop_loss_thred:
+                print(f"达到训练停止阈值，提前结束训练")
                 break
+
         # 保存最佳模型
         torch.save(best_param, f'{self.save_path}{self.save_prefix}master_{self.seed}.pkl')
+        print(f"训练完成，模型已保存到 {self.save_path}{self.save_prefix}master_{self.seed}.pkl")
 
     def predict(self, dataset: DatasetH, use_pretrained = True):
         """
@@ -753,12 +890,12 @@ class MASTERModel(Model):
         pred_all = []
 
         # 预测
-        self.model.eval()
+        self._model.eval()
         for data in test_loader:
             data = torch.squeeze(data, dim=0)
             feature = data[:, :, 0:-1].to(self.device)
             with torch.no_grad():
-                pred = self.model(feature.float()).detach().cpu().numpy()
+                pred = self._model(feature.float()).detach().cpu().numpy()
             pred_all.append(pred.ravel())
 
         # 将预测结果转换为DataFrame
