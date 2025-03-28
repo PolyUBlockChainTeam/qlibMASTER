@@ -286,7 +286,7 @@ class SAttention(nn.Module):
     """
     股票间注意力模块 (Inter-Stock Attention)
     用于捕捉不同股票之间的相互关系，实现股票间的信息聚合
-    使用多头注意力机制处理股票间的依赖关系
+    使用PatchTST架构处理股票间的依赖关系
     
     参数:
         d_model: 特征维度
@@ -298,23 +298,54 @@ class SAttention(nn.Module):
 
         self.d_model = d_model
         self.nhead = nhead
-        # 缩放因子，用于调整注意力分数
-        self.temperature = math.sqrt(self.d_model/nhead)
-
-        # 线性变换层用于生成query, key, value
-        self.qtrans = nn.Linear(d_model, d_model, bias=False)
-        self.ktrans = nn.Linear(d_model, d_model, bias=False)
-        self.vtrans = nn.Linear(d_model, d_model, bias=False)
-
-        # 为每个注意力头创建dropout层
-        attn_dropout_layer = []
-        for i in range(nhead):
-            attn_dropout_layer.append(Dropout(p=dropout))
-        self.attn_dropout = nn.ModuleList(attn_dropout_layer)
-
+        
+        # 创建配置对象
+        class Config:
+            def __init__(self):
+                self.enc_in = d_model
+                self.seq_len = 8  # 假设序列长度为8
+                self.pred_len = 1
+                self.e_layers = 1
+                self.n_heads = nhead
+                self.d_model = d_model
+                self.d_ff = 0
+                self.dropout = dropout
+                self.fc_dropout = dropout
+                self.head_dropout = 0
+                self.individual = False
+                self.patch_len = 4  # 可根据需要调整
+                self.stride = 2    # 可根据需要调整
+                self.padding_patch = 'end'
+                self.revin = 1
+                self.affine = 0
+                self.subtract_last = False
+                self.decomposition = False
+                self.kernel_size = 25
+        
+        configs = Config()
+        
+        # 创建PatchTST模型
+        self.patchtst = PatchTSTModel(
+            configs=configs,
+            max_seq_len=8,
+            d_k=d_model,
+            d_v=d_model,
+            norm='BatchNorm',
+            attn_dropout=dropout,
+            act="gelu",
+            key_padding_mask='auto',
+            res_attention=True,
+            pre_norm=False,
+            store_attn=False,
+            pe='zeros',
+            learn_pe=True,
+            pretrain_head=False,
+            head_type='flatten',
+            verbose=False
+        )
+        
         # 输入层标准化
         self.norm1 = LayerNorm(d_model, eps=1e-5)
-
         # 前馈网络层标准化
         self.norm2 = LayerNorm(d_model, eps=1e-5)
         # 前馈网络
@@ -337,35 +368,17 @@ class SAttention(nn.Module):
         """
         # 第一层标准化
         x = self.norm1(x)
-        # 生成query, key, value并转置
-        q = self.qtrans(x).transpose(0,1)  # [seq_len, batch_size, d_model]
-        k = self.ktrans(x).transpose(0,1)
-        v = self.vtrans(x).transpose(0,1)
-
-        # 多头注意力机制
-        dim = int(self.d_model/self.nhead)
-        att_output = []
-        for i in range(self.nhead):
-            # 获取每个头的query, key, value
-            if i==self.nhead-1:
-                qh = q[:, :, i * dim:]
-                kh = k[:, :, i * dim:]
-                vh = v[:, :, i * dim:]
-            else:
-                qh = q[:, :, i * dim:(i + 1) * dim]
-                kh = k[:, :, i * dim:(i + 1) * dim]
-                vh = v[:, :, i * dim:(i + 1) * dim]
-
-            # 计算注意力分数并进行softmax
-            atten_ave_matrixh = torch.softmax(torch.matmul(qh, kh.transpose(1, 2)) / self.temperature, dim=-1)
-            # 应用dropout
-            if self.attn_dropout:
-                atten_ave_matrixh = self.attn_dropout[i](atten_ave_matrixh)
-            # 计算注意力输出并转置回原始形状
-            att_output.append(torch.matmul(atten_ave_matrixh, vh).transpose(0, 1))
-        # 合并多头注意力输出
-        att_output = torch.concat(att_output, dim=-1)
-
+        
+        # 调整输入维度以适应PatchTST
+        # 对于股票间注意力，需要转置输入使股票作为序列处理
+        x_trans = x.transpose(0, 1)  # [seq_len, batch_size, d_model]
+        
+        # 转回PatchTST期望的输入格式 [batch_size, seq_len, d_model]
+        att_input = x_trans.transpose(0, 1)  # [batch_size, seq_len, d_model]
+        
+        # 应用PatchTST
+        att_output = self.patchtst(att_input)  # [batch_size, seq_len, d_model]
+        
         # 残差连接和前馈网络
         xt = x + att_output  # 残差连接
         xt = self.norm2(xt)  # 第二层标准化
