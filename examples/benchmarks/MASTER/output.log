@@ -1,0 +1,169 @@
+2025-04-01 01:47:20,586 - INFO - 开始运行 MASTER 模型 - universe: csi300, only_backtest: True
+2025-04-01 01:47:20,586 - INFO - 开始时间: 2025-04-01 01:47:20.586284
+2025-04-01 01:48:05,514 - INFO - ------------------------
+2025-04-01 01:48:05,514 - INFO - seed: 0
+
+模型参数量统计:
+--------------------------------------------------
+特征门控层 (Gate): 10,112 参数
+输入映射层 (x2y): 40,704 参数
+时间注意力层 (TAttention): 329,216 参数
+空间注意力层 (SAttention): 329,216 参数
+时序注意力层 (TemporalAttention): 65,536 参数
+解码器 (Decoder): 257 参数
+--------------------------------------------------
+总参数量: 775,041
+'The following are prediction results of the MASTERModel model.'
+                              0
+datetime   instrument          
+2017-01-03 SH600000   -0.066908
+           SH600008   -0.000027
+           SH600009    0.128283
+           SH600010   -0.031882
+           SH600015    0.015894
+{'IC': 0.061803576524011944,
+ 'ICIR': 0.40938587223220135,
+ 'Rank IC': 0.07540593359163002,
+ 'Rank ICIR': 0.505959440098439}
+'The following are analysis results of benchmark return(1day).'
+                       risk
+mean               0.000477
+std                0.012295
+annualized_return  0.113561
+information_ratio  0.598699
+max_drawdown      -0.370479
+'The following are analysis results of the excess return without cost(1day).'
+                       risk
+mean               0.000807
+std                0.006284
+annualized_return  0.192012
+information_ratio  1.980500
+max_drawdown      -0.073629
+'The following are analysis results of the excess return with cost(1day).'
+                       risk
+mean              -0.000593
+std                0.006288
+annualized_return -0.141195
+information_ratio -1.455520
+max_drawdown      -0.507013
+'The following are analysis results of indicators(1day).'
+     value
+ffr    1.0
+pa     0.0
+pos    0.0
+2025-04-01 01:49:27,395 - INFO - Metrics: {'1day.ffr': 1.0, 'Rank ICIR': 0.505959440098439, '1day.excess_return_with_cost.information_ratio': -1.4555204807912687, '1day.excess_return_with_cost.annualized_return': -0.14119481727248712, '1day.excess_return_without_cost.information_ratio': 1.9805001498025878, '1day.pos': 0.0, 'IC': 0.061803576524011944, 'ICIR': 0.40938587223220135, '1day.pa': 0.0, '1day.excess_return_without_cost.std': 0.006284431905391652, 'Rank IC': 0.07540593359163002, '1day.excess_return_with_cost.mean': -0.0005932555347583493, '1day.excess_return_without_cost.mean': 0.0008067749886055477, '1day.excess_return_with_cost.max_drawdown': -0.5070128746990833, '1day.excess_return_without_cost.max_drawdown': -0.07362871849350161, '1day.excess_return_with_cost.std': 0.00628799165041901, '1day.excess_return_without_cost.annualized_return': 0.19201244728812036}
+2025-04-01 01:49:27,395 - INFO - All metrics: {'IC': [0.061803576524011944], 'ICIR': [0.40938587223220135], 'Rank IC': [0.07540593359163002], 'Rank ICIR': [0.505959440098439], '1day.excess_return_without_cost.annualized_return': [0.19201244728812036], '1day.excess_return_without_cost.information_ratio': [1.9805001498025878]}
+2025-04-01 01:49:27,399 - INFO - ------------------------
+2025-04-01 01:49:27,399 - INFO - seed: 1
+
+模型参数量统计:
+--------------------------------------------------
+特征门控层 (Gate): 10,112 参数
+输入映射层 (x2y): 40,704 参数
+时间注意力层 (TAttention): 329,216 参数
+空间注意力层 (SAttention): 329,216 参数
+时序注意力层 (TemporalAttention): 65,536 参数
+解码器 (Decoder): 257 参数
+--------------------------------------------------
+总参数量: 775,041
+'The following are prediction results of the MASTERModel model.'
+                              0
+datetime   instrument          
+2017-01-03 SH600000    0.006498
+           SH600008    0.118002
+           SH600009    0.220404
+           SH600010    0.020609
+           SH600015    0.031215
+{'IC': 0.06165235665999332,
+ 'ICIR': 0.40012292219357554,
+ 'Rank IC': 0.07382676619257761,
+ 'Rank ICIR': 0.4859448894422045}
+'The following are analysis results of benchmark return(1day).'
+                       risk
+mean               0.000477
+std                0.012295
+annualized_return  0.113561
+information_ratio  0.598699
+max_drawdown      -0.370479
+'The following are analysis results of the excess return without cost(1day).'
+                       risk
+mean               0.000798
+std                0.006145
+annualized_return  0.189939
+information_ratio  2.003474
+max_drawdown      -0.061153
+'The following are analysis results of the excess return with cost(1day).'
+                       risk
+mean              -0.000593
+std                0.006153
+annualized_return -0.141036
+information_ratio -1.485881
+max_drawdown      -0.525525
+'The following are analysis results of indicators(1day).'
+     value
+ffr    1.0
+pa     0.0
+pos    0.0
+2025-04-01 01:50:49,534 - INFO - Metrics: {'1day.ffr': 1.0, 'Rank ICIR': 0.4859448894422045, '1day.excess_return_with_cost.information_ratio': -1.4858809719625519, '1day.excess_return_with_cost.annualized_return': -0.14103583445006065, '1day.excess_return_without_cost.information_ratio': 2.0034739461210878, '1day.pos': 0.0, 'IC': 0.06165235665999332, 'ICIR': 0.40012292219357554, '1day.pa': 0.0, '1day.excess_return_without_cost.std': 0.006145285421346314, 'Rank IC': 0.07382676619257761, '1day.excess_return_with_cost.mean': -0.0005925875397061372, '1day.excess_return_without_cost.mean': 0.0007980631890998156, '1day.excess_return_with_cost.max_drawdown': -0.5255248200448417, '1day.excess_return_without_cost.max_drawdown': -0.06115322289426528, '1day.excess_return_with_cost.std': 0.006152575796435998, '1day.excess_return_without_cost.annualized_return': 0.1899390390057561}
+2025-04-01 01:50:49,535 - INFO - All metrics: {'IC': [0.061803576524011944, 0.06165235665999332], 'ICIR': [0.40938587223220135, 0.40012292219357554], 'Rank IC': [0.07540593359163002, 0.07382676619257761], 'Rank ICIR': [0.505959440098439, 0.4859448894422045], '1day.excess_return_without_cost.annualized_return': [0.19201244728812036, 0.1899390390057561], '1day.excess_return_without_cost.information_ratio': [1.9805001498025878, 2.0034739461210878]}
+2025-04-01 01:50:49,541 - INFO - ------------------------
+2025-04-01 01:50:49,541 - INFO - seed: 2
+
+模型参数量统计:
+--------------------------------------------------
+特征门控层 (Gate): 10,112 参数
+输入映射层 (x2y): 40,704 参数
+时间注意力层 (TAttention): 329,216 参数
+空间注意力层 (SAttention): 329,216 参数
+时序注意力层 (TemporalAttention): 65,536 参数
+解码器 (Decoder): 257 参数
+--------------------------------------------------
+总参数量: 775,041
+'The following are prediction results of the MASTERModel model.'
+                              0
+datetime   instrument          
+2017-01-03 SH600000   -0.061569
+           SH600008    0.032084
+           SH600009    0.103721
+           SH600010   -0.122802
+           SH600015    0.048583
+{'IC': 0.06730239598794518,
+ 'ICIR': 0.4622626277715534,
+ 'Rank IC': 0.07908811489131137,
+ 'Rank ICIR': 0.539582931569303}
+'The following are analysis results of benchmark return(1day).'
+                       risk
+mean               0.000477
+std                0.012295
+annualized_return  0.113561
+information_ratio  0.598699
+max_drawdown      -0.370479
+'The following are analysis results of the excess return without cost(1day).'
+                       risk
+mean               0.000815
+std                0.006109
+annualized_return  0.194045
+information_ratio  2.058966
+max_drawdown      -0.086223
+'The following are analysis results of the excess return with cost(1day).'
+                       risk
+mean              -0.000582
+std                0.006112
+annualized_return -0.138413
+information_ratio -1.467839
+max_drawdown      -0.565155
+'The following are analysis results of indicators(1day).'
+     value
+ffr    1.0
+pa     0.0
+pos    0.0
+2025-04-01 01:52:13,288 - INFO - Metrics: {'1day.ffr': 1.0, 'Rank ICIR': 0.539582931569303, '1day.excess_return_with_cost.information_ratio': -1.467839027979114, '1day.excess_return_with_cost.annualized_return': -0.13841300150953015, '1day.excess_return_without_cost.information_ratio': 2.0589656305925623, '1day.pos': 0.0, 'IC': 0.06730239598794518, 'ICIR': 0.4622626277715534, '1day.pa': 0.0, '1day.excess_return_without_cost.std': 0.0061089224007122075, 'Rank IC': 0.07908811489131137, '1day.excess_return_with_cost.mean': -0.00058156723323332, '1day.excess_return_without_cost.mean': 0.0008153146145759033, '1day.excess_return_with_cost.max_drawdown': -0.5651552325175021, '1day.excess_return_without_cost.max_drawdown': -0.08622258815398676, '1day.excess_return_with_cost.std': 0.006112374807885639, '1day.excess_return_without_cost.annualized_return': 0.194044878269065}
+2025-04-01 01:52:13,288 - INFO - All metrics: {'IC': [0.061803576524011944, 0.06165235665999332, 0.06730239598794518], 'ICIR': [0.40938587223220135, 0.40012292219357554, 0.4622626277715534], 'Rank IC': [0.07540593359163002, 0.07382676619257761, 0.07908811489131137], 'Rank ICIR': [0.505959440098439, 0.4859448894422045, 0.539582931569303], '1day.excess_return_without_cost.annualized_return': [0.19201244728812036, 0.1899390390057561, 0.194044878269065], '1day.excess_return_without_cost.information_ratio': [1.9805001498025878, 2.0034739461210878, 2.0589656305925623]}
+2025-04-01 01:52:13,295 - INFO - IC: 0.06358610972398349 +- 0.0026285362921343717
+2025-04-01 01:52:13,295 - INFO - ICIR: 0.42392380739911006 +- 0.02737211989741113
+2025-04-01 01:52:13,295 - INFO - Rank IC: 0.07610693822517299 +- 0.002204390037267062
+2025-04-01 01:52:13,295 - INFO - Rank ICIR: 0.5104957537033155 +- 0.022131327669895763
+2025-04-01 01:52:13,295 - INFO - 1day.excess_return_without_cost.annualized_return: 0.19199878818764715 +- 0.0016762296863897762
+2025-04-01 01:52:13,296 - INFO - 1day.excess_return_without_cost.information_ratio: 2.0143132421720793 +- 0.03293757401571692
+2025-04-01 01:52:13,296 - INFO - 结束时间: 2025-04-01 01:52:13.296048
+2025-04-01 01:52:13,296 - INFO - 模型训练和评估完成

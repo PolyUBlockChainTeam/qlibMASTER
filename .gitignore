@@ -10,7 +10,18 @@ _build
 build/
 dist/
 
+# Ignore all .pkl files by default
 *.pkl
+
+# But track these specific model files
+!examples/benchmarks/*/model/*.pkl
+
+# Ignore all benchmark data files
+examples/benchmarks/*/handler_20080101_20200801.pkl
+examples/benchmarks/*/data/
+examples/benchmarks/*/dataset/
+examples/benchmarks/*/cache/
+
 *.hd5
 *.csv
 
@@ -51,4 +62,9 @@ tags
 .idea/
 .aider*
 
+# Ignore all .log files by default
 *.log
+
+# But track these specific log files
+!examples/benchmarks/*/output.log
+!examples/benchmarks/*/error.log
